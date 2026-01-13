@@ -6,12 +6,15 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { 
   Sparkles, 
   Download, 
   FileSpreadsheet, 
   Trash2,
-  ArrowRight
+  ArrowRight,
+  MessageSquare
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -28,11 +31,13 @@ export function EnrichmentApp() {
     secondaryList,
     tertiaryList,
     enrichedContacts,
+    globalComment,
     isProcessing,
     error,
     importList,
     removeList,
     runEnrichment,
+    setGlobalComment,
     clearAll,
     exportToCSV,
     exportToExcel
@@ -77,6 +82,31 @@ export function EnrichmentApp() {
               </TabsList>
               
               <TabsContent value="enrich" className="flex-1 flex flex-col gap-4 m-0 overflow-hidden">
+                {/* Global comment field */}
+                <Card className="flex-shrink-0">
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <Label htmlFor="global-comment" className="text-sm font-medium">
+                        Internal Comment
+                      </Label>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-3 pt-0">
+                    <Textarea
+                      id="global-comment"
+                      placeholder="Kirjoita kommentti joka lisätään jokaiseen kontaktiin..."
+                      value={globalComment}
+                      onChange={(e) => setGlobalComment(e.target.value)}
+                      className="min-h-[60px] resize-none text-sm"
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {globalComment.length}/500 merkkiä
+                    </p>
+                  </CardContent>
+                </Card>
+
                 {/* List imports */}
                 <div className="flex-1 flex flex-col gap-3 overflow-auto">
                   <ListImportCard
