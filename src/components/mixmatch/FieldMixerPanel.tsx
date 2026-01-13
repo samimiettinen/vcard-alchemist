@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import type { MasterContact, RawSourceContact, SourceFile, NormalizedFields } from '@/types/database'
+import type { MasterContact, RawSourceContact, SourceFile, NormalizedFields, PhoneNumber, UrlEntry } from '@/types/database'
 
 interface FieldMixerPanelProps {
   masterContact: Partial<MasterContact>
