@@ -1,21 +1,25 @@
+import { useState } from 'react'
 import { useEnrichmentEngine } from '@/hooks/useEnrichmentEngine'
 import { ListImportCard } from './ListImportCard'
 import { FieldSelectionCard } from './FieldSelectionCard'
 import { EnrichmentResultsPanel } from './EnrichmentResultsPanel'
 import { SavedContactsPanel } from './SavedContactsPanel'
+import { DuplicateWarningDialog } from './DuplicateWarningDialog'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { 
   Sparkles, 
   Download, 
   FileSpreadsheet, 
   Trash2,
   ArrowRight,
-  MessageSquare
+  MessageSquare,
+  AlertTriangle
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -27,6 +31,8 @@ import { toast } from 'sonner'
 import type { MasterContact } from '@/types/database'
 
 export function EnrichmentApp() {
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
+  
   const {
     primaryList,
     secondaryList,
@@ -36,6 +42,7 @@ export function EnrichmentApp() {
     globalNotes,
     isProcessing,
     error,
+    primaryListDuplicates,
     importList,
     removeList,
     runEnrichment,
@@ -50,6 +57,19 @@ export function EnrichmentApp() {
 
   const canEnrich = primaryList.contacts.length > 0 && 
     (secondaryList.contacts.length > 0 || tertiaryList.contacts.length > 0)
+
+  const handleEnrichClick = () => {
+    if (primaryListDuplicates.length > 0) {
+      setShowDuplicateWarning(true)
+    } else {
+      runEnrichment()
+    }
+  }
+
+  const handleProceedWithDuplicates = () => {
+    setShowDuplicateWarning(false)
+    runEnrichment()
+  }
 
   const handleExportCSV = () => {
     if (enrichedContacts.length === 0) {
@@ -169,8 +189,20 @@ export function EnrichmentApp() {
                 <Card className="flex-shrink-0">
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-2">
+                      {primaryListDuplicates.length > 0 && (
+                        <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 dark:border-amber-800">
+                          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                          <span className="text-xs text-amber-700 dark:text-amber-400">
+                            {primaryListDuplicates.length} potential duplicate group{primaryListDuplicates.length > 1 ? 's' : ''} detected
+                          </span>
+                          <Badge variant="outline" className="ml-auto text-xs">
+                            {primaryListDuplicates.reduce((sum, g) => sum + g.contacts.length, 0)} contacts
+                          </Badge>
+                        </div>
+                      )}
+                      
                       <Button
-                        onClick={runEnrichment}
+                        onClick={handleEnrichClick}
                         disabled={!canEnrich || isProcessing}
                         className="w-full"
                       >
@@ -231,6 +263,14 @@ export function EnrichmentApp() {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+      
+      <DuplicateWarningDialog
+        open={showDuplicateWarning}
+        onOpenChange={setShowDuplicateWarning}
+        duplicateGroups={primaryListDuplicates}
+        onProceed={handleProceedWithDuplicates}
+        onCancel={() => setShowDuplicateWarning(false)}
+      />
     </div>
   )
 }
