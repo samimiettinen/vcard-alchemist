@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      mixmatch_master_contacts: {
+        Row: {
+          addresses: Json
+          consiglieri_contact_id: string | null
+          created_at: string
+          full_name: string
+          id: string
+          kind: string
+          notes: string | null
+          organization: string | null
+          phones: Json
+          primary_email: string | null
+          secondary_emails: string[]
+          source_links: Json
+          structured_name: Json
+          tags: string[]
+          title: string | null
+          updated_at: string
+          urls: Json
+        }
+        Insert: {
+          addresses?: Json
+          consiglieri_contact_id?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          organization?: string | null
+          phones?: Json
+          primary_email?: string | null
+          secondary_emails?: string[]
+          source_links?: Json
+          structured_name?: Json
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+          urls?: Json
+        }
+        Update: {
+          addresses?: Json
+          consiglieri_contact_id?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          organization?: string | null
+          phones?: Json
+          primary_email?: string | null
+          secondary_emails?: string[]
+          source_links?: Json
+          structured_name?: Json
+          tags?: string[]
+          title?: string | null
+          updated_at?: string
+          urls?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
