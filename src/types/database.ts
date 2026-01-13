@@ -50,6 +50,7 @@ export interface NormalizedFields {
   phones?: PhoneNumber[]
   company?: string
   organization?: string
+  organizationType?: string
   role?: string
   title?: string
   projectName?: string

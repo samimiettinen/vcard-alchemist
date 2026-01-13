@@ -18,6 +18,7 @@ export type EnrichableField =
   | 'email' 
   | 'phone' 
   | 'organization' 
+  | 'organizationType'
   | 'title' 
   | 'linkedin' 
   | 'website' 
@@ -26,7 +27,7 @@ export type EnrichableField =
   | 'notes'
 
 export const ALL_ENRICHABLE_FIELDS: EnrichableField[] = [
-  'email', 'phone', 'organization', 'title', 'linkedin', 'website', 'address', 'tags', 'notes'
+  'email', 'phone', 'organization', 'organizationType', 'title', 'linkedin', 'website', 'address', 'tags', 'notes'
 ]
 
 export interface EnrichedContact {
@@ -301,6 +302,13 @@ export function useEnrichmentEngine() {
           }
           if (!enriched.enrichedFields.company && sourceFields.company) {
             enriched.enrichedFields.company = sourceFields.company
+          }
+        }
+        
+        // Fill in missing organization type (if selected)
+        if (selectedFields.has('organizationType')) {
+          if (!enriched.enrichedFields.organizationType && sourceFields.organizationType) {
+            enriched.enrichedFields.organizationType = sourceFields.organizationType
           }
         }
         
