@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,7 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [deleteContactId, setDeleteContactId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const fetchContacts = async () => {
     setIsLoading(true)
@@ -123,8 +125,35 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
     )
   })
 
-  const prepareExportData = () => {
-    return contacts.map(c => ({
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredContacts.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredContacts.map(c => c.id)))
+    }
+  }
+
+  const getExportContacts = () => {
+    if (selectedIds.size > 0) {
+      return contacts.filter(c => selectedIds.has(c.id))
+    }
+    return contacts
+  }
+
+  const prepareExportData = (contactsToExport: MasterContact[]) => {
+    return contactsToExport.map(c => ({
       'Nimi': c.full_name || '',
       'Etunimi': c.structured_name?.givenName || '',
       'Sukunimi': c.structured_name?.familyName || '',
@@ -143,12 +172,13 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
   }
 
   const exportToCSV = () => {
-    if (contacts.length === 0) {
+    const exportContacts = getExportContacts()
+    if (exportContacts.length === 0) {
       toast.error('Ei kontakteja vietäväksi')
       return
     }
 
-    const data = prepareExportData()
+    const data = prepareExportData(exportContacts)
     const headers = Object.keys(data[0])
     const csvContent = [
       headers.join(','),
@@ -171,16 +201,18 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
     link.download = `kontaktit_${new Date().toISOString().split('T')[0]}.csv`
     link.click()
     URL.revokeObjectURL(url)
-    toast.success(`${contacts.length} kontaktia viety CSV-tiedostoon`)
+    toast.success(`${exportContacts.length} kontaktia viety CSV-tiedostoon`)
+    setSelectedIds(new Set())
   }
 
   const exportToExcel = () => {
-    if (contacts.length === 0) {
+    const exportContacts = getExportContacts()
+    if (exportContacts.length === 0) {
       toast.error('Ei kontakteja vietäväksi')
       return
     }
 
-    const data = prepareExportData()
+    const data = prepareExportData(exportContacts)
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Kontaktit')
@@ -192,16 +224,24 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
     ws['!cols'] = colWidths.map(w => ({ wch: Math.min(w.wch, 50) }))
 
     XLSX.writeFile(wb, `kontaktit_${new Date().toISOString().split('T')[0]}.xlsx`)
-    toast.success(`${contacts.length} kontaktia viety Excel-tiedostoon`)
+    toast.success(`${exportContacts.length} kontaktia viety Excel-tiedostoon`)
+    setSelectedIds(new Set())
   }
 
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
-            Tallennetut kontaktit ({contacts.length})
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-semibold">
+              Tallennetut ({contacts.length})
+            </CardTitle>
+            {selectedIds.size > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {selectedIds.size} valittu
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -260,45 +300,70 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
             </div>
           ) : (
             <div className="space-y-2">
+              {/* Select all row */}
+              {filteredContacts.length > 0 && (
+                <div className="flex items-center gap-2 py-2 px-1 border-b">
+                  <Checkbox
+                    checked={selectedIds.size === filteredContacts.length && filteredContacts.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Valitse kaikki ({filteredContacts.length})
+                  </span>
+                </div>
+              )}
               {filteredContacts.map(contact => (
                 <div
                   key={contact.id}
-                  className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors group"
+                  className={`p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors group ${
+                    selectedIds.has(contact.id) ? 'ring-2 ring-primary/50' : ''
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                       <div className="flex-shrink-0 mt-0.5">
-                        {contact.kind === 'org' ? (
-                          <Building2 className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          <User className="h-5 w-5 text-muted-foreground" />
-                        )}
+                        <Checkbox
+                          checked={selectedIds.has(contact.id)}
+                          onCheckedChange={() => toggleSelection(contact.id)}
+                        />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{contact.full_name}</p>
-                        {contact.title && (
-                          <p className="text-sm text-muted-foreground truncate">{contact.title}</p>
-                        )}
-                        {contact.organization && (
-                          <p className="text-sm text-muted-foreground truncate">{contact.organization}</p>
-                        )}
-                        {contact.primary_email && (
-                          <p className="text-xs text-muted-foreground truncate mt-1">{contact.primary_email}</p>
-                        )}
-                        {contact.tags && contact.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {contact.tags.slice(0, 3).map((tag, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {contact.tags.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{contact.tags.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
+                      <div 
+                        className="flex items-start gap-2 flex-1 min-w-0 cursor-pointer"
+                        onClick={() => toggleSelection(contact.id)}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {contact.kind === 'org' ? (
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <User className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{contact.full_name}</p>
+                          {contact.title && (
+                            <p className="text-sm text-muted-foreground truncate">{contact.title}</p>
+                          )}
+                          {contact.organization && (
+                            <p className="text-sm text-muted-foreground truncate">{contact.organization}</p>
+                          )}
+                          {contact.primary_email && (
+                            <p className="text-xs text-muted-foreground truncate mt-1">{contact.primary_email}</p>
+                          )}
+                          {contact.tags && contact.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {contact.tags.slice(0, 3).map((tag, i) => (
+                                <Badge key={i} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {contact.tags.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{contact.tags.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -306,7 +371,7 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => onEditContact(contact)}
+                        onClick={(e) => { e.stopPropagation(); onEditContact(contact); }}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -314,7 +379,7 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteContactId(contact.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeleteContactId(contact.id); }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
