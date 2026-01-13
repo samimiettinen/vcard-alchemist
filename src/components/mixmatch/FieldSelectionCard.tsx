@@ -7,7 +7,8 @@ import {
   MapPin, 
   Tag, 
   FileText,
-  Globe
+  Globe,
+  Layers
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -31,6 +32,7 @@ const FIELD_OPTIONS: FieldOption[] = [
   { id: 'email', label: 'Email', icon: <Mail className="h-4 w-4" /> },
   { id: 'phone', label: 'Phone', icon: <Phone className="h-4 w-4" /> },
   { id: 'organization', label: 'Organization', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'organizationType', label: 'Organization Type', icon: <Layers className="h-4 w-4" /> },
   { id: 'title', label: 'Title', icon: <Briefcase className="h-4 w-4" /> },
   { id: 'linkedin', label: 'LinkedIn', icon: <Link2 className="h-4 w-4" /> },
   { id: 'website', label: 'Organization URL', icon: <Globe className="h-4 w-4" /> },
