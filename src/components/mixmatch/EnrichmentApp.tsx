@@ -33,13 +33,13 @@ export function EnrichmentApp() {
     tertiaryList,
     enrichedContacts,
     selectedEnrichmentFields,
-    globalComment,
+    globalNotes,
     isProcessing,
     error,
     importList,
     removeList,
     runEnrichment,
-    setGlobalComment,
+    setGlobalNotes,
     toggleEnrichmentField,
     selectAllEnrichmentFields,
     deselectAllEnrichmentFields,
@@ -87,27 +87,27 @@ export function EnrichmentApp() {
               </TabsList>
               
               <TabsContent value="enrich" className="flex-1 flex flex-col gap-4 m-0 overflow-hidden">
-                {/* Global comment field */}
+                {/* Global notes field */}
                 <Card className="flex-shrink-0">
                   <CardHeader className="pb-2 pt-3 px-4">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="global-comment" className="text-sm font-medium">
-                        Internal Comment
+                      <Label htmlFor="global-notes" className="text-sm font-medium">
+                        Internal Notes
                       </Label>
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-3 pt-0">
                     <Textarea
-                      id="global-comment"
-                      placeholder="Kirjoita kommentti joka lisätään jokaiseen kontaktiin..."
-                      value={globalComment}
-                      onChange={(e) => setGlobalComment(e.target.value)}
+                      id="global-notes"
+                      placeholder="Add notes that will be included with every contact..."
+                      value={globalNotes}
+                      onChange={(e) => setGlobalNotes(e.target.value)}
                       className="min-h-[60px] resize-none text-sm"
                       maxLength={500}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      {globalComment.length}/500 merkkiä
+                      {globalNotes.length}/500 characters
                     </p>
                   </CardContent>
                 </Card>

@@ -59,7 +59,7 @@ interface UseEnrichmentEngineState {
   enrichedContacts: EnrichedContact[]
   fieldMappings: Map<string, FieldMapping[]>
   selectedEnrichmentFields: Set<EnrichableField>
-  globalComment: string
+  globalNotes: string
   isProcessing: boolean
   error: string | null
 }
@@ -77,16 +77,16 @@ export function useEnrichmentEngine() {
     enrichedContacts: [],
     fieldMappings: new Map(),
     selectedEnrichmentFields: new Set(ALL_ENRICHABLE_FIELDS),
-    globalComment: '',
+    globalNotes: '',
     isProcessing: false,
     error: null
   })
 
   /**
-   * Set global comment that will be added to all contacts
+   * Set global notes that will be added to all contacts
    */
-  const setGlobalComment = useCallback((comment: string) => {
-    setState(prev => ({ ...prev, globalComment: comment }))
+  const setGlobalNotes = useCallback((notes: string) => {
+    setState(prev => ({ ...prev, globalNotes: notes }))
   }, [])
 
   /**
@@ -383,7 +383,7 @@ export function useEnrichmentEngine() {
       enrichedContacts: [],
       fieldMappings: new Map(),
       selectedEnrichmentFields: new Set(ALL_ENRICHABLE_FIELDS),
-      globalComment: '',
+      globalNotes: '',
       isProcessing: false,
       error: null
     })
@@ -416,12 +416,12 @@ export function useEnrichmentEngine() {
         'LinkedIn': ec.enrichedFields.linkedinUrl || '',
         'Tags': ec.enrichedFields.tags?.join(', ') || '',
         'Notes': ec.enrichedFields.notes || '',
-        'Internal Comment': state.globalComment || '',
+        'Internal Notes': state.globalNotes || '',
         'Enrichment Sources': ec.matchedSources.length,
         'Enrichment Source Names': ec.matchedSources.map(m => m.sourceFile.filename).join(', ')
       }
     })
-  }, [state.enrichedContacts, state.globalComment])
+  }, [state.enrichedContacts, state.globalNotes])
 
   /**
    * Export to CSV
@@ -477,7 +477,7 @@ export function useEnrichmentEngine() {
     importList,
     removeList,
     runEnrichment,
-    setGlobalComment,
+    setGlobalNotes,
     toggleEnrichmentField,
     selectAllEnrichmentFields,
     deselectAllEnrichmentFields,
