@@ -124,23 +124,23 @@ export interface Database {
     Tables: {
       mixmatch_source_files: {
         Row: SourceFile
-        Insert: Omit<SourceFile, 'id' | 'created_at'>
-        Update: Partial<Omit<SourceFile, 'id'>>
+        Insert: SourceFile
+        Update: Partial<SourceFile>
       }
       mixmatch_raw_contacts: {
         Row: RawSourceContact
-        Insert: Omit<RawSourceContact, 'id' | 'created_at'>
-        Update: Partial<Omit<RawSourceContact, 'id'>>
+        Insert: RawSourceContact
+        Update: Partial<RawSourceContact>
       }
       mixmatch_master_contacts: {
         Row: MasterContact
-        Insert: Omit<MasterContact, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<MasterContact, 'id'>>
+        Insert: MasterContact
+        Update: Partial<MasterContact>
       }
       mixmatch_match_candidates: {
         Row: MatchCandidate
-        Insert: Omit<MatchCandidate, 'id' | 'created_at'>
-        Update: Partial<Omit<MatchCandidate, 'id'>>
+        Insert: MatchCandidate
+        Update: Partial<MatchCandidate>
       }
     }
     Views: Record<string, never>

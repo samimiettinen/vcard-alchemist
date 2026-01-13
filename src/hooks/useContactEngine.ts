@@ -13,6 +13,7 @@ import type {
 import { parseFile, type ParsedFile } from '@/lib/import/parseFile'
 import { autoDetectMappings, normalizeContact, type FieldMapping } from '@/lib/import/fieldMapping'
 import { findMatchCandidates, groupRawContactsByMatch } from '@/lib/matching/matchingService'
+import { supabase } from '@/lib/supabaseClient'
 
 interface UseContactEngineState {
   sourceFiles: SourceFile[]
@@ -21,6 +22,7 @@ interface UseContactEngineState {
   matchedContacts: RawSourceContact[]
   fieldMappings: Map<string, FieldMapping[]>
   isProcessing: boolean
+  isSaving: boolean
   error: string | null
 }
 
@@ -32,6 +34,7 @@ export function useContactEngine() {
     matchedContacts: [],
     fieldMappings: new Map(),
     isProcessing: false,
+    isSaving: false,
     error: null
   })
 
@@ -270,9 +273,67 @@ export function useContactEngine() {
       matchedContacts: [],
       fieldMappings: new Map(),
       isProcessing: false,
+      isSaving: false,
       error: null
     })
   }, [])
+
+  /**
+   * Save master contact to Supabase
+   */
+  const saveMasterContact = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    const contact = state.masterContact
+    
+    if (!contact.full_name && !contact.primary_email) {
+      return { success: false, error: 'Kontaktilla täytyy olla vähintään nimi tai sähköposti' }
+    }
+
+    setState(prev => ({ ...prev, isSaving: true, error: null }))
+
+    try {
+      const contactToSave: MasterContact = {
+        id: contact.id || crypto.randomUUID(),
+        full_name: contact.full_name || '',
+        structured_name: contact.structured_name || { givenName: '', familyName: '' },
+        kind: contact.kind || 'individual',
+        primary_email: contact.primary_email || undefined,
+        secondary_emails: contact.secondary_emails || [],
+        phones: contact.phones || [],
+        organization: contact.organization || undefined,
+        title: contact.title || undefined,
+        urls: contact.urls || [],
+        addresses: contact.addresses || [],
+        notes: contact.notes || undefined,
+        tags: contact.tags || [],
+        source_links: contact.source_links || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      const { error } = await supabase
+        .from('mixmatch_master_contacts')
+        .upsert(contactToSave as any, { onConflict: 'id' })
+
+      if (error) {
+        console.error('Supabase save error:', error)
+        setState(prev => ({ ...prev, isSaving: false, error: error.message }))
+        return { success: false, error: error.message }
+      }
+
+      setState(prev => ({ 
+        ...prev, 
+        isSaving: false,
+        masterContact: createEmptyMasterContact(),
+        matchedContacts: []
+      }))
+      
+      return { success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Tallennusvirhe'
+      setState(prev => ({ ...prev, isSaving: false, error: errorMessage }))
+      return { success: false, error: errorMessage }
+    }
+  }, [state.masterContact])
 
   return {
     ...state,
@@ -282,7 +343,8 @@ export function useContactEngine() {
     updateMasterField,
     applyFieldFromSource,
     resetMasterContact,
-    clearAll
+    clearAll,
+    saveMasterContact
   }
 }
 
