@@ -3,17 +3,9 @@ import type { Database } from '@/types/database'
 
 /**
  * Supabase client for Mix & Match Contact Engine
- * 
- * This client connects to the SAME Supabase project as Consiglieri CRM.
- * The anon key should be added as VITE_SUPABASE_ANON_KEY environment variable.
- * 
- * New tables are prefixed with 'mixmatch_' to avoid conflicts with Consiglieri schema.
+ * Connects to the same Supabase project as Consiglieri CRM.
  */
-const supabaseUrl = 'https://kzprjhogawcsuclftdkt.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const SUPABASE_URL = "https://kzprjhogawcsuclftdkt.supabase.co"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6cHJqaG9nYXdjc3VjbGZ0ZGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0NjE5OTcsImV4cCI6MjA4MTAzNzk5N30.A9ochLfTKA_5XRdTh9nPdGEoLDk-F6a3CdfcpqpD8qU"
 
-if (!supabaseAnonKey) {
-  console.warn('VITE_SUPABASE_ANON_KEY is not set. Database operations will fail.')
-}
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY)

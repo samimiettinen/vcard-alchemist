@@ -1,4 +1,4 @@
-import { Download, User, Building2, RefreshCw } from 'lucide-react'
+import { Download, User, Building2, RefreshCw, Save, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -7,23 +7,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import type { MasterContact, ContactKind } from '@/types/database'
 import { generateVCard, downloadVCard } from '@/lib/vcard/vcardGenerator'
+import { toast } from 'sonner'
 
 interface MasterContactPanelProps {
   masterContact: Partial<MasterContact>
   onUpdateField: <K extends keyof MasterContact>(field: K, value: MasterContact[K]) => void
   onReset: () => void
+  onSave: () => Promise<{ success: boolean; error?: string }>
+  isSaving: boolean
 }
 
 export function MasterContactPanel({
   masterContact,
   onUpdateField,
-  onReset
+  onReset,
+  onSave,
+  isSaving
 }: MasterContactPanelProps) {
   const hasContent = Boolean(masterContact.full_name || masterContact.primary_email)
   
   const handleDownload = () => {
     if (!masterContact.full_name) return
     downloadVCard(masterContact as MasterContact)
+  }
+
+  const handleSave = async () => {
+    const result = await onSave()
+    if (result.success) {
+      toast.success('Kontakti tallennettu tietokantaan!')
+    } else {
+      toast.error(`Tallennus epäonnistui: ${result.error}`)
+    }
   }
 
   const vcardPreview = hasContent ? generateVCard(masterContact as MasterContact) : ''
@@ -38,18 +52,31 @@ export function MasterContactPanel({
               variant="ghost"
               size="sm"
               onClick={onReset}
-              disabled={!hasContent}
+              disabled={!hasContent || isSaving}
             >
               <RefreshCw className="h-4 w-4 mr-1" />
               Tyhjennä
             </Button>
             <Button
+              variant="outline"
               size="sm"
               onClick={handleDownload}
               disabled={!hasContent}
             >
               <Download className="h-4 w-4 mr-1" />
-              Lataa vCard
+              vCard
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!hasContent || isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-1" />
+              )}
+              Tallenna
             </Button>
           </div>
         </div>

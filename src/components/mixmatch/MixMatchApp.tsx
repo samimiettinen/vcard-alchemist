@@ -13,13 +13,15 @@ export function MixMatchApp() {
     masterContact,
     matchedContacts,
     isProcessing,
+    isSaving,
     error,
     importFiles,
     selectRawContact,
     updateMasterField,
     applyFieldFromSource,
     resetMasterContact,
-    clearAll
+    clearAll,
+    saveMasterContact
   } = useContactEngine()
 
   const hasMatchedContacts = matchedContacts.length > 0
@@ -82,6 +84,8 @@ export function MixMatchApp() {
               masterContact={masterContact}
               onUpdateField={updateMasterField}
               onReset={resetMasterContact}
+              onSave={saveMasterContact}
+              isSaving={isSaving}
             />
           </div>
         </ResizablePanel>
