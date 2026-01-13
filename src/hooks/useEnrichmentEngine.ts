@@ -207,6 +207,12 @@ export function useEnrichmentEngine() {
         matchedSources: []
       }
 
+      // Build URLs array including LinkedIn if available
+      const primaryUrls = primaryContact.normalized_fields.urls || []
+      if (primaryContact.normalized_fields.linkedinUrl && !primaryUrls.some(u => u.label === 'linkedin')) {
+        primaryUrls.push({ label: 'linkedin', url: primaryContact.normalized_fields.linkedinUrl })
+      }
+      
       // Find matches in secondary list
       if (state.secondaryList.contacts.length > 0) {
         for (const secondaryContact of state.secondaryList.contacts) {
@@ -218,7 +224,7 @@ export function useEnrichmentEngine() {
               phones: primaryContact.normalized_fields.phones || 
                 (primaryContact.normalized_fields.phone ? [{ label: 'work' as const, number: primaryContact.normalized_fields.phone }] : []),
               organization: primaryContact.normalized_fields.organization || primaryContact.normalized_fields.company,
-              urls: primaryContact.normalized_fields.urls || []
+              urls: primaryUrls
             },
             secondaryContact.normalized_fields
           )
@@ -246,7 +252,7 @@ export function useEnrichmentEngine() {
               phones: primaryContact.normalized_fields.phones || 
                 (primaryContact.normalized_fields.phone ? [{ label: 'work' as const, number: primaryContact.normalized_fields.phone }] : []),
               organization: primaryContact.normalized_fields.organization || primaryContact.normalized_fields.company,
-              urls: primaryContact.normalized_fields.urls || []
+              urls: primaryUrls
             },
             tertiaryContact.normalized_fields
           )
@@ -387,25 +393,34 @@ export function useEnrichmentEngine() {
    * Prepare export data from enriched contacts
    */
   const prepareExportData = useCallback(() => {
-    return state.enrichedContacts.map(ec => ({
-      'Etunimi': ec.enrichedFields.firstName || '',
-      'Sukunimi': ec.enrichedFields.lastName || '',
-      'Koko nimi': ec.enrichedFields.fullName || 
-        [ec.enrichedFields.firstName, ec.enrichedFields.lastName].filter(Boolean).join(' '),
-      'Sähköposti': ec.enrichedFields.email || '',
-      'Muut sähköpostit': ec.enrichedFields.secondaryEmails?.join('; ') || '',
-      'Puhelin': ec.enrichedFields.phone || '',
-      'Puhelimet': ec.enrichedFields.phones?.map(p => `${p.label}: ${p.number}`).join('; ') || '',
-      'Organisaatio': ec.enrichedFields.organization || ec.enrichedFields.company || '',
-      'Titteli': ec.enrichedFields.title || ec.enrichedFields.role || '',
-      'LinkedIn': ec.enrichedFields.linkedinUrl || '',
-      'Verkkosivu': ec.enrichedFields.websiteUrl || '',
-      'Tagit': ec.enrichedFields.tags?.join(', ') || '',
-      'Muistiinpanot': ec.enrichedFields.notes || '',
-      'Internal Comment': state.globalComment || '',
-      'Rikastuslähteet': ec.matchedSources.length,
-      'Rikastuslähteiden nimet': ec.matchedSources.map(m => m.sourceFile.filename).join(', ')
-    }))
+    return state.enrichedContacts.map(ec => {
+      // Extract organization URL from urls array if websiteUrl is not set
+      const orgUrl = ec.enrichedFields.websiteUrl || 
+        ec.enrichedFields.urls?.find(u => u.label === 'website')?.url || ''
+      
+      // Extract country from address object
+      const country = typeof ec.enrichedFields.address === 'object' && ec.enrichedFields.address 
+        ? ec.enrichedFields.address.country || ''
+        : ''
+      
+      return {
+        'Name': ec.enrichedFields.fullName || 
+          [ec.enrichedFields.firstName, ec.enrichedFields.lastName].filter(Boolean).join(' '),
+        'Email': ec.enrichedFields.email || '',
+        'Organization': ec.enrichedFields.organization || ec.enrichedFields.company || '',
+        'Organization URL': orgUrl,
+        'Organization Type': ec.enrichedFields.organizationType || '',
+        'Country': country,
+        'Phone': ec.enrichedFields.phone || '',
+        'Title': ec.enrichedFields.title || ec.enrichedFields.role || '',
+        'LinkedIn': ec.enrichedFields.linkedinUrl || '',
+        'Tags': ec.enrichedFields.tags?.join(', ') || '',
+        'Notes': ec.enrichedFields.notes || '',
+        'Internal Comment': state.globalComment || '',
+        'Enrichment Sources': ec.matchedSources.length,
+        'Enrichment Source Names': ec.matchedSources.map(m => m.sourceFile.filename).join(', ')
+      }
+    })
   }, [state.enrichedContacts, state.globalComment])
 
   /**
