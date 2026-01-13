@@ -14,6 +14,7 @@ import { parseFile, type ParsedFile } from '@/lib/import/parseFile'
 import { autoDetectMappings, normalizeContact, type FieldMapping } from '@/lib/import/fieldMapping'
 import { findMatchCandidates, groupRawContactsByMatch } from '@/lib/matching/matchingService'
 import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/hooks/useAuth'
 
 interface UseContactEngineState {
   sourceFiles: SourceFile[]
@@ -27,6 +28,7 @@ interface UseContactEngineState {
 }
 
 export function useContactEngine() {
+  const { user } = useAuth()
   const [state, setState] = useState<UseContactEngineState>({
     sourceFiles: [],
     rawContacts: [],
@@ -288,11 +290,16 @@ export function useContactEngine() {
       return { success: false, error: 'Kontaktilla täytyy olla vähintään nimi tai sähköposti' }
     }
 
+    if (!user) {
+      return { success: false, error: 'Kirjaudu sisään tallentaaksesi kontakteja' }
+    }
+
     setState(prev => ({ ...prev, isSaving: true, error: null }))
 
     try {
-      const contactToSave: MasterContact = {
+      const contactToSave = {
         id: contact.id || crypto.randomUUID(),
+        user_id: user.id,
         full_name: contact.full_name || '',
         structured_name: contact.structured_name || { givenName: '', familyName: '' },
         kind: contact.kind || 'individual',
@@ -333,7 +340,7 @@ export function useContactEngine() {
       setState(prev => ({ ...prev, isSaving: false, error: errorMessage }))
       return { success: false, error: errorMessage }
     }
-  }, [state.masterContact])
+  }, [state.masterContact, user])
 
   return {
     ...state,
