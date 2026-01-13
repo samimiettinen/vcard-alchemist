@@ -28,15 +28,15 @@ interface FieldOption {
 }
 
 const FIELD_OPTIONS: FieldOption[] = [
-  { id: 'email', label: 'Sähköposti', icon: <Mail className="h-4 w-4" /> },
-  { id: 'phone', label: 'Puhelin', icon: <Phone className="h-4 w-4" /> },
-  { id: 'organization', label: 'Organisaatio', icon: <Building2 className="h-4 w-4" /> },
-  { id: 'title', label: 'Titteli', icon: <Briefcase className="h-4 w-4" /> },
+  { id: 'email', label: 'Email', icon: <Mail className="h-4 w-4" /> },
+  { id: 'phone', label: 'Phone', icon: <Phone className="h-4 w-4" /> },
+  { id: 'organization', label: 'Organization', icon: <Building2 className="h-4 w-4" /> },
+  { id: 'title', label: 'Title', icon: <Briefcase className="h-4 w-4" /> },
   { id: 'linkedin', label: 'LinkedIn', icon: <Link2 className="h-4 w-4" /> },
-  { id: 'website', label: 'Verkkosivu', icon: <Globe className="h-4 w-4" /> },
-  { id: 'address', label: 'Osoite', icon: <MapPin className="h-4 w-4" /> },
-  { id: 'tags', label: 'Tagit', icon: <Tag className="h-4 w-4" /> },
-  { id: 'notes', label: 'Muistiinpanot', icon: <FileText className="h-4 w-4" /> },
+  { id: 'website', label: 'Organization URL', icon: <Globe className="h-4 w-4" /> },
+  { id: 'address', label: 'Country', icon: <MapPin className="h-4 w-4" /> },
+  { id: 'tags', label: 'Tags', icon: <Tag className="h-4 w-4" /> },
+  { id: 'notes', label: 'Notes', icon: <FileText className="h-4 w-4" /> },
 ]
 
 export function FieldSelectionCard({
@@ -52,14 +52,14 @@ export function FieldSelectionCard({
     <Card className="flex-shrink-0">
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Rikastettavat kentät</CardTitle>
+          <CardTitle className="text-sm font-medium">Fields to Enrich</CardTitle>
           <div className="flex gap-2">
             <button
               onClick={onSelectAll}
               className="text-xs text-primary hover:underline disabled:opacity-50"
               disabled={allSelected}
             >
-              Kaikki
+              All
             </button>
             <span className="text-muted-foreground">|</span>
             <button
@@ -67,7 +67,7 @@ export function FieldSelectionCard({
               className="text-xs text-primary hover:underline disabled:opacity-50"
               disabled={noneSelected}
             >
-              Ei mitään
+              None
             </button>
           </div>
         </div>
@@ -102,7 +102,7 @@ export function FieldSelectionCard({
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          {selectedFields.size}/{FIELD_OPTIONS.length} kenttää valittu
+          {selectedFields.size}/{FIELD_OPTIONS.length} fields selected
         </p>
       </CardContent>
     </Card>
