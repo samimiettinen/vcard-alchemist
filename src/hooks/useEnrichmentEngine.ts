@@ -411,8 +411,25 @@ export function useEnrichmentEngine() {
         ? ec.enrichedFields.address.country || ''
         : ''
       
+      // Parse first name and last name from enriched fields or full name
+      let firstName = ec.enrichedFields.firstName || ''
+      let lastName = ec.enrichedFields.lastName || ''
+      
+      // If firstName/lastName not available, parse from fullName
+      if (!firstName && !lastName && ec.enrichedFields.fullName) {
+        const nameParts = ec.enrichedFields.fullName.trim().split(/\s+/)
+        if (nameParts.length === 1) {
+          firstName = nameParts[0]
+        } else if (nameParts.length >= 2) {
+          firstName = nameParts[0]
+          lastName = nameParts.slice(1).join(' ')
+        }
+      }
+      
       return {
-        'Name': ec.enrichedFields.fullName || 
+        'First Name': firstName,
+        'Last Name': lastName,
+        'Full Name': ec.enrichedFields.fullName || 
           [ec.enrichedFields.firstName, ec.enrichedFields.lastName].filter(Boolean).join(' '),
         'Email': ec.enrichedFields.email || '',
         'Organization': ec.enrichedFields.organization || ec.enrichedFields.company || '',
