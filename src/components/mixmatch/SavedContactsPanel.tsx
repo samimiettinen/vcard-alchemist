@@ -1,0 +1,250 @@
+import { useState, useEffect } from 'react'
+import { User, Building2, Trash2, Pencil, Loader2, Search, RefreshCw } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { supabase } from '@/lib/supabaseClient'
+import type { MasterContact } from '@/types/database'
+import { toast } from 'sonner'
+
+interface SavedContactsPanelProps {
+  onEditContact: (contact: MasterContact) => void
+}
+
+export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
+  const [contacts, setContacts] = useState<MasterContact[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deleteContactId, setDeleteContactId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const fetchContacts = async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('mixmatch_master_contacts')
+        .select('*')
+        .order('updated_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching contacts:', error)
+        toast.error('Kontaktien haku epäonnistui')
+        return
+      }
+
+      // Transform the data to match our MasterContact type
+      const transformedContacts: MasterContact[] = (data || []).map(row => ({
+        id: row.id,
+        full_name: row.full_name,
+        structured_name: row.structured_name as unknown as MasterContact['structured_name'],
+        kind: row.kind as MasterContact['kind'],
+        primary_email: row.primary_email || undefined,
+        secondary_emails: row.secondary_emails || [],
+        phones: (row.phones as unknown as MasterContact['phones']) || [],
+        organization: row.organization || undefined,
+        title: row.title || undefined,
+        urls: (row.urls as unknown as MasterContact['urls']) || [],
+        addresses: (row.addresses as unknown as MasterContact['addresses']) || [],
+        notes: row.notes || undefined,
+        tags: row.tags || [],
+        source_links: (row.source_links as unknown as MasterContact['source_links']) || [],
+        consiglieri_contact_id: row.consiglieri_contact_id || undefined,
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      }))
+
+      setContacts(transformedContacts)
+    } catch (err) {
+      console.error('Error:', err)
+      toast.error('Virhe kontaktien haussa')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchContacts()
+  }, [])
+
+  const handleDelete = async () => {
+    if (!deleteContactId) return
+    
+    setIsDeleting(true)
+    try {
+      const { error } = await supabase
+        .from('mixmatch_master_contacts')
+        .delete()
+        .eq('id', deleteContactId)
+
+      if (error) {
+        console.error('Delete error:', error)
+        toast.error('Poisto epäonnistui')
+        return
+      }
+
+      setContacts(prev => prev.filter(c => c.id !== deleteContactId))
+      toast.success('Kontakti poistettu')
+    } catch (err) {
+      console.error('Error:', err)
+      toast.error('Virhe poistossa')
+    } finally {
+      setIsDeleting(false)
+      setDeleteContactId(null)
+    }
+  }
+
+  const filteredContacts = contacts.filter(contact => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      contact.full_name?.toLowerCase().includes(query) ||
+      contact.primary_email?.toLowerCase().includes(query) ||
+      contact.organization?.toLowerCase().includes(query) ||
+      contact.tags?.some(tag => tag.toLowerCase().includes(query))
+    )
+  })
+
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">
+            Tallennetut kontaktit ({contacts.length})
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchContacts}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+        <div className="relative mt-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Etsi kontakteja..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 overflow-hidden p-0">
+        <ScrollArea className="h-full px-4 pb-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <User className="h-16 w-16 text-muted-foreground/20 mb-4" />
+              <p className="text-muted-foreground">
+                {searchQuery ? 'Ei hakutuloksia' : 'Ei tallennettuja kontakteja'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredContacts.map(contact => (
+                <div
+                  key={contact.id}
+                  className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {contact.kind === 'org' ? (
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <User className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{contact.full_name}</p>
+                        {contact.title && (
+                          <p className="text-sm text-muted-foreground truncate">{contact.title}</p>
+                        )}
+                        {contact.organization && (
+                          <p className="text-sm text-muted-foreground truncate">{contact.organization}</p>
+                        )}
+                        {contact.primary_email && (
+                          <p className="text-xs text-muted-foreground truncate mt-1">{contact.primary_email}</p>
+                        )}
+                        {contact.tags && contact.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {contact.tags.slice(0, 3).map((tag, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {contact.tags.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{contact.tags.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => onEditContact(contact)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteContactId(contact.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
+
+      <AlertDialog open={!!deleteContactId} onOpenChange={(open) => !open && setDeleteContactId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Poista kontakti?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tätä toimintoa ei voi peruuttaa. Kontakti poistetaan pysyvästi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Peruuta</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Poista
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  )
+}

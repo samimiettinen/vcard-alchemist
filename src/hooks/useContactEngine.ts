@@ -265,6 +265,17 @@ export function useContactEngine() {
   }, [])
 
   /**
+   * Load an existing contact for editing
+   */
+  const loadContactForEdit = useCallback((contact: MasterContact) => {
+    setState(prev => ({
+      ...prev,
+      masterContact: { ...contact },
+      matchedContacts: []
+    }))
+  }, [])
+
+  /**
    * Clear all imported data
    */
   const clearAll = useCallback(() => {
@@ -350,6 +361,7 @@ export function useContactEngine() {
     updateMasterField,
     applyFieldFromSource,
     resetMasterContact,
+    loadContactForEdit,
     clearAll,
     saveMasterContact
   }
