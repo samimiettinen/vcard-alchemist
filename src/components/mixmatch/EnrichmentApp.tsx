@@ -1,11 +1,12 @@
 import { useEnrichmentEngine } from '@/hooks/useEnrichmentEngine'
 import { ListImportCard } from './ListImportCard'
+import { FieldSelectionCard } from './FieldSelectionCard'
 import { EnrichmentResultsPanel } from './EnrichmentResultsPanel'
 import { SavedContactsPanel } from './SavedContactsPanel'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { 
@@ -31,6 +32,7 @@ export function EnrichmentApp() {
     secondaryList,
     tertiaryList,
     enrichedContacts,
+    selectedEnrichmentFields,
     globalComment,
     isProcessing,
     error,
@@ -38,6 +40,9 @@ export function EnrichmentApp() {
     removeList,
     runEnrichment,
     setGlobalComment,
+    toggleEnrichmentField,
+    selectAllEnrichmentFields,
+    deselectAllEnrichmentFields,
     clearAll,
     exportToCSV,
     exportToExcel
@@ -106,6 +111,14 @@ export function EnrichmentApp() {
                     </p>
                   </CardContent>
                 </Card>
+
+                {/* Field selection */}
+                <FieldSelectionCard
+                  selectedFields={selectedEnrichmentFields}
+                  onToggleField={toggleEnrichmentField}
+                  onSelectAll={selectAllEnrichmentFields}
+                  onDeselectAll={deselectAllEnrichmentFields}
+                />
 
                 {/* List imports */}
                 <div className="flex-1 flex flex-col gap-3 overflow-auto">

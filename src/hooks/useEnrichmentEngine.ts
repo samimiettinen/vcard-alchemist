@@ -14,6 +14,21 @@ import * as XLSX from 'xlsx'
 
 export type ListRole = 'primary' | 'secondary' | 'tertiary'
 
+export type EnrichableField = 
+  | 'email' 
+  | 'phone' 
+  | 'organization' 
+  | 'title' 
+  | 'linkedin' 
+  | 'website' 
+  | 'address' 
+  | 'tags' 
+  | 'notes'
+
+export const ALL_ENRICHABLE_FIELDS: EnrichableField[] = [
+  'email', 'phone', 'organization', 'title', 'linkedin', 'website', 'address', 'tags', 'notes'
+]
+
 export interface EnrichedContact {
   id: string
   original: RawSourceContact
@@ -42,6 +57,7 @@ interface UseEnrichmentEngineState {
   }
   enrichedContacts: EnrichedContact[]
   fieldMappings: Map<string, FieldMapping[]>
+  selectedEnrichmentFields: Set<EnrichableField>
   globalComment: string
   isProcessing: boolean
   error: string | null
@@ -59,6 +75,7 @@ export function useEnrichmentEngine() {
     tertiaryList: createEmptyListState(),
     enrichedContacts: [],
     fieldMappings: new Map(),
+    selectedEnrichmentFields: new Set(ALL_ENRICHABLE_FIELDS),
     globalComment: '',
     isProcessing: false,
     error: null
@@ -69,6 +86,35 @@ export function useEnrichmentEngine() {
    */
   const setGlobalComment = useCallback((comment: string) => {
     setState(prev => ({ ...prev, globalComment: comment }))
+  }, [])
+
+  /**
+   * Toggle a field for enrichment
+   */
+  const toggleEnrichmentField = useCallback((field: EnrichableField) => {
+    setState(prev => {
+      const newFields = new Set(prev.selectedEnrichmentFields)
+      if (newFields.has(field)) {
+        newFields.delete(field)
+      } else {
+        newFields.add(field)
+      }
+      return { ...prev, selectedEnrichmentFields: newFields }
+    })
+  }, [])
+
+  /**
+   * Select all enrichment fields
+   */
+  const selectAllEnrichmentFields = useCallback(() => {
+    setState(prev => ({ ...prev, selectedEnrichmentFields: new Set(ALL_ENRICHABLE_FIELDS) }))
+  }, [])
+
+  /**
+   * Deselect all enrichment fields
+   */
+  const deselectAllEnrichmentFields = useCallback(() => {
+    setState(prev => ({ ...prev, selectedEnrichmentFields: new Set() }))
   }, [])
 
   /**
@@ -219,69 +265,90 @@ export function useEnrichmentEngine() {
       // Sort matched sources by score
       enriched.matchedSources.sort((a, b) => b.matchScore - a.matchScore)
 
-      // Enrich fields from matched sources (fill in missing fields)
+      // Enrich fields from matched sources (fill in missing fields) - only selected fields
+      const selectedFields = state.selectedEnrichmentFields
+      
       for (const match of enriched.matchedSources) {
         const sourceFields = match.rawContact.normalized_fields
         
-        // Fill in missing email
-        if (!enriched.enrichedFields.email && sourceFields.email) {
-          enriched.enrichedFields.email = sourceFields.email
+        // Fill in missing email (if selected)
+        if (selectedFields.has('email')) {
+          if (!enriched.enrichedFields.email && sourceFields.email) {
+            enriched.enrichedFields.email = sourceFields.email
+          }
+          // Also merge secondary emails
+          if (sourceFields.secondaryEmails && sourceFields.secondaryEmails.length > 0) {
+            const existing = enriched.enrichedFields.secondaryEmails || []
+            const newEmails = sourceFields.secondaryEmails.filter(e => !existing.includes(e))
+            enriched.enrichedFields.secondaryEmails = [...existing, ...newEmails]
+          }
         }
         
-        // Fill in missing phone
-        if (!enriched.enrichedFields.phone && sourceFields.phone) {
-          enriched.enrichedFields.phone = sourceFields.phone
-        }
-        if ((!enriched.enrichedFields.phones || enriched.enrichedFields.phones.length === 0) && sourceFields.phones) {
-          enriched.enrichedFields.phones = sourceFields.phones
-        }
-        
-        // Fill in missing organization
-        if (!enriched.enrichedFields.organization && sourceFields.organization) {
-          enriched.enrichedFields.organization = sourceFields.organization
-        }
-        if (!enriched.enrichedFields.company && sourceFields.company) {
-          enriched.enrichedFields.company = sourceFields.company
+        // Fill in missing phone (if selected)
+        if (selectedFields.has('phone')) {
+          if (!enriched.enrichedFields.phone && sourceFields.phone) {
+            enriched.enrichedFields.phone = sourceFields.phone
+          }
+          if ((!enriched.enrichedFields.phones || enriched.enrichedFields.phones.length === 0) && sourceFields.phones) {
+            enriched.enrichedFields.phones = sourceFields.phones
+          }
         }
         
-        // Fill in missing title/role
-        if (!enriched.enrichedFields.title && sourceFields.title) {
-          enriched.enrichedFields.title = sourceFields.title
-        }
-        if (!enriched.enrichedFields.role && sourceFields.role) {
-          enriched.enrichedFields.role = sourceFields.role
-        }
-        
-        // Fill in missing URLs
-        if (!enriched.enrichedFields.linkedinUrl && sourceFields.linkedinUrl) {
-          enriched.enrichedFields.linkedinUrl = sourceFields.linkedinUrl
-        }
-        if (!enriched.enrichedFields.websiteUrl && sourceFields.websiteUrl) {
-          enriched.enrichedFields.websiteUrl = sourceFields.websiteUrl
+        // Fill in missing organization (if selected)
+        if (selectedFields.has('organization')) {
+          if (!enriched.enrichedFields.organization && sourceFields.organization) {
+            enriched.enrichedFields.organization = sourceFields.organization
+          }
+          if (!enriched.enrichedFields.company && sourceFields.company) {
+            enriched.enrichedFields.company = sourceFields.company
+          }
         }
         
-        // Fill in missing address
-        if (!enriched.enrichedFields.address && sourceFields.address) {
-          enriched.enrichedFields.address = sourceFields.address
+        // Fill in missing title/role (if selected)
+        if (selectedFields.has('title')) {
+          if (!enriched.enrichedFields.title && sourceFields.title) {
+            enriched.enrichedFields.title = sourceFields.title
+          }
+          if (!enriched.enrichedFields.role && sourceFields.role) {
+            enriched.enrichedFields.role = sourceFields.role
+          }
         }
         
-        // Fill in missing notes
-        if (!enriched.enrichedFields.notes && sourceFields.notes) {
-          enriched.enrichedFields.notes = sourceFields.notes
+        // Fill in missing LinkedIn URL (if selected)
+        if (selectedFields.has('linkedin')) {
+          if (!enriched.enrichedFields.linkedinUrl && sourceFields.linkedinUrl) {
+            enriched.enrichedFields.linkedinUrl = sourceFields.linkedinUrl
+          }
         }
         
-        // Merge secondary emails
-        if (sourceFields.secondaryEmails && sourceFields.secondaryEmails.length > 0) {
-          const existing = enriched.enrichedFields.secondaryEmails || []
-          const newEmails = sourceFields.secondaryEmails.filter(e => !existing.includes(e))
-          enriched.enrichedFields.secondaryEmails = [...existing, ...newEmails]
+        // Fill in missing website URL (if selected)
+        if (selectedFields.has('website')) {
+          if (!enriched.enrichedFields.websiteUrl && sourceFields.websiteUrl) {
+            enriched.enrichedFields.websiteUrl = sourceFields.websiteUrl
+          }
         }
         
-        // Merge tags
-        if (sourceFields.tags && sourceFields.tags.length > 0) {
-          const existing = enriched.enrichedFields.tags || []
-          const newTags = sourceFields.tags.filter(t => !existing.includes(t))
-          enriched.enrichedFields.tags = [...existing, ...newTags]
+        // Fill in missing address (if selected)
+        if (selectedFields.has('address')) {
+          if (!enriched.enrichedFields.address && sourceFields.address) {
+            enriched.enrichedFields.address = sourceFields.address
+          }
+        }
+        
+        // Fill in missing notes (if selected)
+        if (selectedFields.has('notes')) {
+          if (!enriched.enrichedFields.notes && sourceFields.notes) {
+            enriched.enrichedFields.notes = sourceFields.notes
+          }
+        }
+        
+        // Merge tags (if selected)
+        if (selectedFields.has('tags')) {
+          if (sourceFields.tags && sourceFields.tags.length > 0) {
+            const existing = enriched.enrichedFields.tags || []
+            const newTags = sourceFields.tags.filter(t => !existing.includes(t))
+            enriched.enrichedFields.tags = [...existing, ...newTags]
+          }
         }
       }
 
@@ -289,7 +356,7 @@ export function useEnrichmentEngine() {
     })
 
     setState(prev => ({ ...prev, enrichedContacts }))
-  }, [state.primaryList, state.secondaryList, state.tertiaryList])
+  }, [state.primaryList, state.secondaryList, state.tertiaryList, state.selectedEnrichmentFields])
 
   /**
    * Clear all data
@@ -301,6 +368,7 @@ export function useEnrichmentEngine() {
       tertiaryList: createEmptyListState(),
       enrichedContacts: [],
       fieldMappings: new Map(),
+      selectedEnrichmentFields: new Set(ALL_ENRICHABLE_FIELDS),
       globalComment: '',
       isProcessing: false,
       error: null
@@ -387,6 +455,9 @@ export function useEnrichmentEngine() {
     removeList,
     runEnrichment,
     setGlobalComment,
+    toggleEnrichmentField,
+    selectAllEnrichmentFields,
+    deselectAllEnrichmentFields,
     clearAll,
     exportToCSV,
     exportToExcel
