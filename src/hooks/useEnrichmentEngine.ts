@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { 
   SourceFile, 
   RawSourceContact, 
@@ -9,7 +9,7 @@ import type {
 } from '@/types/database'
 import { parseFile } from '@/lib/import/parseFile'
 import { autoDetectMappings, normalizeContact, type FieldMapping } from '@/lib/import/fieldMapping'
-import { calculateMatchScore } from '@/lib/matching/matchingService'
+import { calculateMatchScore, detectDuplicates, type DuplicateGroup } from '@/lib/matching/matchingService'
 import * as XLSX from 'xlsx'
 
 export type ListRole = 'primary' | 'secondary' | 'tertiary'
@@ -81,6 +81,14 @@ export function useEnrichmentEngine() {
     isProcessing: false,
     error: null
   })
+
+  /**
+   * Detect duplicates in the primary list
+   */
+  const primaryListDuplicates = useMemo((): DuplicateGroup[] => {
+    if (state.primaryList.contacts.length === 0) return []
+    return detectDuplicates(state.primaryList.contacts, 0.5)
+  }, [state.primaryList.contacts])
 
   /**
    * Set global notes that will be added to all contacts
@@ -474,6 +482,7 @@ export function useEnrichmentEngine() {
 
   return {
     ...state,
+    primaryListDuplicates,
     importList,
     removeList,
     runEnrichment,

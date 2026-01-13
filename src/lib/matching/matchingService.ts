@@ -7,6 +7,12 @@ export interface MatchResult {
   reasons: string[]
 }
 
+export interface DuplicateGroup {
+  id: string
+  contacts: RawSourceContact[]
+  matchReasons: string[]
+}
+
 /**
  * Match scoring weights
  * Higher values = stronger match signal
@@ -120,6 +126,109 @@ export function calculateMatchScore(
     if (masterOrg && rawOrg && fuzzyMatch(masterOrg, rawOrg) > 0.9) {
       maxScore = Math.max(maxScore, MATCH_WEIGHTS.sameOrgOnly)
       reasons.push('Same organization')
+    }
+  }
+  
+  return { score: maxScore, reasons }
+}
+
+/**
+ * Detect potential duplicates within a list of contacts
+ */
+export function detectDuplicates(contacts: RawSourceContact[], threshold: number = 0.5): DuplicateGroup[] {
+  const duplicateGroups: DuplicateGroup[] = []
+  const processedIds = new Set<string>()
+  
+  for (let i = 0; i < contacts.length; i++) {
+    if (processedIds.has(contacts[i].id)) continue
+    
+    const contact = contacts[i]
+    const group: RawSourceContact[] = [contact]
+    const allReasons: Set<string> = new Set()
+    
+    for (let j = i + 1; j < contacts.length; j++) {
+      if (processedIds.has(contacts[j].id)) continue
+      
+      const otherContact = contacts[j]
+      const { score, reasons } = calculateContactSimilarity(
+        contact.normalized_fields,
+        otherContact.normalized_fields
+      )
+      
+      if (score >= threshold) {
+        group.push(otherContact)
+        reasons.forEach(r => allReasons.add(r))
+        processedIds.add(otherContact.id)
+      }
+    }
+    
+    if (group.length > 1) {
+      processedIds.add(contact.id)
+      duplicateGroups.push({
+        id: crypto.randomUUID(),
+        contacts: group,
+        matchReasons: Array.from(allReasons)
+      })
+    }
+  }
+  
+  return duplicateGroups
+}
+
+/**
+ * Calculate similarity score between two normalized contact fields
+ */
+function calculateContactSimilarity(
+  a: NormalizedFields,
+  b: NormalizedFields
+): { score: number; reasons: string[] } {
+  const reasons: string[] = []
+  let maxScore = 0
+  
+  // Exact email match
+  if (a.email && b.email) {
+    if (normalizeEmail(a.email) === normalizeEmail(b.email)) {
+      maxScore = Math.max(maxScore, 0.95)
+      reasons.push('Same email')
+    }
+  }
+  
+  // LinkedIn match
+  if (a.linkedinUrl && b.linkedinUrl) {
+    if (normalizeLinkedInUrl(a.linkedinUrl) === normalizeLinkedInUrl(b.linkedinUrl)) {
+      maxScore = Math.max(maxScore, 0.95)
+      reasons.push('Same LinkedIn')
+    }
+  }
+  
+  // Phone match
+  if (a.phone && b.phone) {
+    if (normalizePhone(a.phone) === normalizePhone(b.phone)) {
+      maxScore = Math.max(maxScore, 0.85)
+      reasons.push('Same phone')
+    }
+  }
+  
+  // Name comparison
+  const nameA = a.fullName?.toLowerCase().trim() || 
+    [a.firstName, a.lastName].filter(Boolean).join(' ').toLowerCase().trim()
+  const nameB = b.fullName?.toLowerCase().trim() || 
+    [b.firstName, b.lastName].filter(Boolean).join(' ').toLowerCase().trim()
+  
+  if (nameA && nameB) {
+    const nameScore = fuzzyNameMatch(nameA, nameB)
+    
+    const orgA = (a.organization || a.company)?.toLowerCase().trim()
+    const orgB = (b.organization || b.company)?.toLowerCase().trim()
+    
+    if (nameScore > 0.85) {
+      if (orgA && orgB && fuzzyMatch(orgA, orgB) > 0.8) {
+        maxScore = Math.max(maxScore, 0.8)
+        reasons.push('Same name & organization')
+      } else if (nameScore > 0.95) {
+        maxScore = Math.max(maxScore, 0.6)
+        reasons.push('Same name')
+      }
     }
   }
   
