@@ -42,6 +42,7 @@ interface UseEnrichmentEngineState {
   }
   enrichedContacts: EnrichedContact[]
   fieldMappings: Map<string, FieldMapping[]>
+  globalComment: string
   isProcessing: boolean
   error: string | null
 }
@@ -58,9 +59,17 @@ export function useEnrichmentEngine() {
     tertiaryList: createEmptyListState(),
     enrichedContacts: [],
     fieldMappings: new Map(),
+    globalComment: '',
     isProcessing: false,
     error: null
   })
+
+  /**
+   * Set global comment that will be added to all contacts
+   */
+  const setGlobalComment = useCallback((comment: string) => {
+    setState(prev => ({ ...prev, globalComment: comment }))
+  }, [])
 
   /**
    * Import a file for a specific list role
@@ -292,6 +301,7 @@ export function useEnrichmentEngine() {
       tertiaryList: createEmptyListState(),
       enrichedContacts: [],
       fieldMappings: new Map(),
+      globalComment: '',
       isProcessing: false,
       error: null
     })
@@ -316,10 +326,11 @@ export function useEnrichmentEngine() {
       'Verkkosivu': ec.enrichedFields.websiteUrl || '',
       'Tagit': ec.enrichedFields.tags?.join(', ') || '',
       'Muistiinpanot': ec.enrichedFields.notes || '',
+      'Internal Comment': state.globalComment || '',
       'Rikastuslähteet': ec.matchedSources.length,
       'Rikastuslähteiden nimet': ec.matchedSources.map(m => m.sourceFile.filename).join(', ')
     }))
-  }, [state.enrichedContacts])
+  }, [state.enrichedContacts, state.globalComment])
 
   /**
    * Export to CSV
@@ -375,6 +386,7 @@ export function useEnrichmentEngine() {
     importList,
     removeList,
     runEnrichment,
+    setGlobalComment,
     clearAll,
     exportToCSV,
     exportToExcel
