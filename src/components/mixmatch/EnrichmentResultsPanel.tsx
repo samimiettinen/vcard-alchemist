@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { 
   User, 
-  Building2, 
   ChevronDown, 
   ChevronRight, 
   Mail, 
@@ -14,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { EnrichmentSummary } from './EnrichmentSummary'
 import type { EnrichedContact } from '@/hooks/useEnrichmentEngine'
 
 interface EnrichmentResultsPanelProps {
@@ -55,17 +55,20 @@ export function EnrichmentResultsPanel({ enrichedContacts }: EnrichmentResultsPa
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">Rikastetut kontaktit</CardTitle>
-          <div className="flex items-center gap-2">
+    <div className="h-full flex flex-col">
+      {/* Summary at top */}
+      <EnrichmentSummary enrichedContacts={enrichedContacts} />
+      
+      {/* Contact list */}
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardHeader className="pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Kontaktilista</CardTitle>
             <Badge variant="secondary">
               {enrichedCount}/{totalCount} rikastettu
             </Badge>
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-0">
         <ScrollArea className="h-full px-4 pb-4">
           <div className="space-y-2">
@@ -189,5 +192,6 @@ export function EnrichmentResultsPanel({ enrichedContacts }: EnrichmentResultsPa
         </ScrollArea>
       </CardContent>
     </Card>
+    </div>
   )
 }
