@@ -33,6 +33,7 @@ export type Database = {
           title: string | null
           updated_at: string
           urls: Json
+          user_id: string | null
         }
         Insert: {
           addresses?: Json
@@ -52,6 +53,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           urls?: Json
+          user_id?: string | null
         }
         Update: {
           addresses?: Json
@@ -71,6 +73,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           urls?: Json
+          user_id?: string | null
         }
         Relationships: []
       }
