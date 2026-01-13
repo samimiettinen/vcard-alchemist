@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { User, Building2, Trash2, Pencil, Loader2, Search, RefreshCw } from 'lucide-react'
+import { User, Building2, Trash2, Pencil, Loader2, Search, RefreshCw, Download, FileSpreadsheet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -15,9 +15,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { supabase } from '@/lib/supabaseClient'
 import type { MasterContact } from '@/types/database'
 import { toast } from 'sonner'
+import * as XLSX from 'xlsx'
 
 interface SavedContactsPanelProps {
   onEditContact: (contact: MasterContact) => void
@@ -116,6 +123,78 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
     )
   })
 
+  const prepareExportData = () => {
+    return contacts.map(c => ({
+      'Nimi': c.full_name || '',
+      'Etunimi': c.structured_name?.givenName || '',
+      'Sukunimi': c.structured_name?.familyName || '',
+      'Sähköposti': c.primary_email || '',
+      'Muut sähköpostit': c.secondary_emails?.join('; ') || '',
+      'Puhelimet': c.phones?.map(p => `${p.label}: ${p.number}`).join('; ') || '',
+      'Organisaatio': c.organization || '',
+      'Titteli': c.title || '',
+      'Tagit': c.tags?.join(', ') || '',
+      'URL-osoitteet': c.urls?.map(u => u.url).join('; ') || '',
+      'Muistiinpanot': c.notes || '',
+      'Tyyppi': c.kind === 'org' ? 'Organisaatio' : 'Henkilö',
+      'Luotu': c.created_at || '',
+      'Päivitetty': c.updated_at || ''
+    }))
+  }
+
+  const exportToCSV = () => {
+    if (contacts.length === 0) {
+      toast.error('Ei kontakteja vietäväksi')
+      return
+    }
+
+    const data = prepareExportData()
+    const headers = Object.keys(data[0])
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(h => {
+          const value = String(row[h as keyof typeof row] || '')
+          // Escape quotes and wrap in quotes if contains comma or newline
+          if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+            return `"${value.replace(/"/g, '""')}"`
+          }
+          return value
+        }).join(',')
+      )
+    ].join('\n')
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `kontaktit_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(`${contacts.length} kontaktia viety CSV-tiedostoon`)
+  }
+
+  const exportToExcel = () => {
+    if (contacts.length === 0) {
+      toast.error('Ei kontakteja vietäväksi')
+      return
+    }
+
+    const data = prepareExportData()
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Kontaktit')
+    
+    // Auto-size columns
+    const colWidths = Object.keys(data[0]).map(key => ({
+      wch: Math.max(key.length, ...data.map(row => String(row[key as keyof typeof row] || '').length))
+    }))
+    ws['!cols'] = colWidths.map(w => ({ wch: Math.min(w.wch, 50) }))
+
+    XLSX.writeFile(wb, `kontaktit_${new Date().toISOString().split('T')[0]}.xlsx`)
+    toast.success(`${contacts.length} kontaktia viety Excel-tiedostoon`)
+  }
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
@@ -123,14 +202,38 @@ export function SavedContactsPanel({ onEditContact }: SavedContactsPanelProps) {
           <CardTitle className="text-lg font-semibold">
             Tallennetut kontaktit ({contacts.length})
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchContacts}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={contacts.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Vie
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <Download className="h-4 w-4 mr-2" />
+                  CSV-tiedosto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToExcel}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Excel-tiedosto
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchContacts}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
