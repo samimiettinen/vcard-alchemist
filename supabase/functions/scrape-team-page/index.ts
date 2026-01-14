@@ -28,6 +28,43 @@ interface ScrapeResult {
   error?: string;
 }
 
+// Helper function to fetch with retry for transient connection issues
+async function fetchWithRetry(
+  url: string, 
+  options: RequestInit, 
+  maxRetries = 3, 
+  delayMs = 1000
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Fetch attempt ${attempt}/${maxRetries} for ${url}`);
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(`Attempt ${attempt} failed: ${lastError.message}`);
+      
+      // Only retry on connection errors, not on other types of errors
+      if (lastError.message.includes('Connection refused') || 
+          lastError.message.includes('ECONNREFUSED') ||
+          lastError.message.includes('tcp connect error')) {
+        if (attempt < maxRetries) {
+          console.log(`Waiting ${delayMs}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          delayMs *= 2; // Exponential backoff
+        }
+      } else {
+        // Don't retry for non-connection errors
+        throw lastError;
+      }
+    }
+  }
+  
+  throw lastError || new Error('All retry attempts failed');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -60,20 +97,25 @@ serve(async (req) => {
 
     console.log('Scraping team page URL:', formattedUrl);
 
-    // Step 1: Scrape the page with Firecrawl
-    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    // Step 1: Scrape the page with Firecrawl (with retry logic)
+    const scrapeResponse = await fetchWithRetry(
+      'https://api.firecrawl.dev/v1/scrape',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: formattedUrl,
+          formats: ['markdown', 'links'],
+          onlyMainContent: true,
+          waitFor: 2000,
+        }),
       },
-      body: JSON.stringify({
-        url: formattedUrl,
-        formats: ['markdown', 'links'],
-        onlyMainContent: true,
-        waitFor: 2000,
-      }),
-    });
+      3, // max retries
+      1000 // initial delay
+    );
 
     const scrapeData = await scrapeResponse.json();
 
