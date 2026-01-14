@@ -186,6 +186,96 @@ export function useEnrichmentEngine() {
   }, [])
 
   /**
+   * Import scraped team contacts into a list
+   */
+  const importScrapedContacts = useCallback((
+    scrapedMembers: Array<{
+      firstName: string
+      lastName: string
+      fullName: string
+      email: string
+      phone: string
+      mobilePhone: string
+      title: string
+      linkedinUrl: string
+      imageUrl: string
+      bio: string
+    }>,
+    organizationName: string,
+    organizationUrl: string,
+    role: ListRole
+  ) => {
+    if (scrapedMembers.length === 0) return
+
+    const sourceFile: SourceFile = {
+      id: crypto.randomUUID(),
+      filename: `Scraped: ${organizationName || 'Team Page'}`,
+      file_type: 'csv' as const,
+      imported_at: new Date().toISOString(),
+      original_headers: ['First Name', 'Last Name', 'Full Name', 'Email', 'Phone', 'Mobile Phone', 'Title', 'LinkedIn URL', 'Organization', 'Organization URL'],
+      row_count: scrapedMembers.length
+    }
+
+    const contacts: RawSourceContact[] = scrapedMembers.map((member, index) => {
+      const normalized: NormalizedFields = {
+        firstName: member.firstName,
+        lastName: member.lastName,
+        fullName: member.fullName || `${member.firstName} ${member.lastName}`.trim(),
+        email: member.email,
+        phone: member.phone || member.mobilePhone,
+        phones: [
+          member.phone && { label: 'work' as const, number: member.phone },
+          member.mobilePhone && { label: 'cell' as const, number: member.mobilePhone }
+        ].filter(Boolean) as PhoneNumber[],
+        title: member.title,
+        organization: organizationName,
+        linkedinUrl: member.linkedinUrl,
+        websiteUrl: organizationUrl,
+        notes: member.bio
+      }
+
+      const rawData: Record<string, string> = {
+        'First Name': member.firstName,
+        'Last Name': member.lastName,
+        'Full Name': member.fullName,
+        'Email': member.email,
+        'Phone': member.phone,
+        'Mobile Phone': member.mobilePhone,
+        'Title': member.title,
+        'LinkedIn URL': member.linkedinUrl,
+        'Organization': organizationName,
+        'Organization URL': organizationUrl
+      }
+
+      return {
+        id: crypto.randomUUID(),
+        source_file_id: sourceFile.id,
+        row_index: index,
+        raw_data: rawData,
+        normalized_fields: normalized,
+        confidence_scores: {
+          firstName: member.firstName ? 1 : 0,
+          lastName: member.lastName ? 1 : 0,
+          email: member.email ? 1 : 0,
+          phone: (member.phone || member.mobilePhone) ? 1 : 0,
+          title: member.title ? 1 : 0,
+          organization: organizationName ? 1 : 0,
+          linkedinUrl: member.linkedinUrl ? 1 : 0
+        }
+      }
+    })
+
+    const listKey = role === 'primary' ? 'primaryList' : 
+                    role === 'secondary' ? 'secondaryList' : 'tertiaryList'
+
+    setState(prev => ({
+      ...prev,
+      [listKey]: { sourceFile, contacts },
+      enrichedContacts: role === 'primary' ? [] : prev.enrichedContacts
+    }))
+  }, [])
+
+  /**
    * Remove a list
    */
   const removeList = useCallback((role: ListRole) => {
@@ -501,6 +591,7 @@ export function useEnrichmentEngine() {
     ...state,
     primaryListDuplicates,
     importList,
+    importScrapedContacts,
     removeList,
     runEnrichment,
     setGlobalNotes,

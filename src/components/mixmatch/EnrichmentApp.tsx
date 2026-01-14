@@ -46,6 +46,7 @@ export function EnrichmentApp() {
     error,
     primaryListDuplicates,
     importList,
+    importScrapedContacts,
     removeList,
     runEnrichment,
     setGlobalNotes,
@@ -254,7 +255,7 @@ export function EnrichmentApp() {
               </TabsContent>
               
               <TabsContent value="scrape" className="flex-1 m-0 overflow-auto">
-                <TeamScraperPanel />
+                <TeamScraperPanel onImportToList={importScrapedContacts} />
               </TabsContent>
               
               <TabsContent value="saved" className="flex-1 m-0 overflow-hidden">

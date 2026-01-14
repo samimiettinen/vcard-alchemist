@@ -17,13 +17,25 @@ import {
   Phone,
   CheckCircle2,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Import,
+  ArrowRight
 } from 'lucide-react'
 import { scrapeTeamPage, type TeamMember, type ScrapeResult } from '@/lib/api/teamScraper'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
+import type { ListRole } from '@/hooks/useEnrichmentEngine'
 
-export function TeamScraperPanel() {
+interface TeamScraperPanelProps {
+  onImportToList?: (
+    members: TeamMember[],
+    organizationName: string,
+    organizationUrl: string,
+    role: ListRole
+  ) => void
+}
+
+export function TeamScraperPanel({ onImportToList }: TeamScraperPanelProps) {
   const [url, setUrl] = useState('')
   const [organizationName, setOrganizationName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -170,6 +182,21 @@ export function TeamScraperPanel() {
     toast.success(`Exported ${exportData.length} contacts`)
   }, [result, selectedMembers])
 
+  const handleImportToList = useCallback((role: ListRole) => {
+    if (!result?.teamMembers || selectedMembers.size === 0 || !onImportToList) return
+
+    const membersToImport = result.teamMembers.filter((_, i) => selectedMembers.has(i))
+    
+    onImportToList(
+      membersToImport,
+      result.organizationName,
+      result.organizationUrl,
+      role
+    )
+
+    toast.success(`Imported ${membersToImport.length} contacts to ${role} list`)
+  }, [result, selectedMembers, onImportToList])
+
   return (
     <div className="space-y-6">
       {/* Input Section */}
@@ -291,6 +318,39 @@ export function TeamScraperPanel() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Import to List Controls */}
+                {onImportToList && (
+                  <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                    <Import className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span className="text-sm font-medium flex-1">Import to enrichment list:</span>
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      onClick={() => handleImportToList('primary')}
+                      disabled={selectedMembers.size === 0}
+                    >
+                      Primary
+                      <ArrowRight className="ml-1 h-3 w-3" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleImportToList('secondary')}
+                      disabled={selectedMembers.size === 0}
+                    >
+                      Secondary
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleImportToList('tertiary')}
+                      disabled={selectedMembers.size === 0}
+                    >
+                      Tertiary
+                    </Button>
+                  </div>
+                )}
 
                 {/* Team Members List */}
                 <ScrollArea className="h-[400px] rounded-md border">
