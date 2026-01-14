@@ -64,10 +64,22 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
       if (data.success) {
         setResult(data)
         // Select all members by default
-        setSelectedMembers(new Set(data.teamMembers.map((_, i) => i)))
+        const allSelected = new Set(data.teamMembers.map((_, i) => i))
+        setSelectedMembers(allSelected)
         
         if (data.teamMembers.length > 0) {
-          toast.success(`Found ${data.teamMembers.length} team members`)
+          // Auto-import to primary list
+          if (onImportToList) {
+            onImportToList(
+              data.teamMembers,
+              data.organizationName,
+              data.organizationUrl,
+              'primary'
+            )
+            toast.success(`Found and imported ${data.teamMembers.length} team members to Primary list`)
+          } else {
+            toast.success(`Found ${data.teamMembers.length} team members`)
+          }
         } else if (data.error) {
           toast.warning(data.error)
         } else {
@@ -83,7 +95,7 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
     } finally {
       setIsLoading(false)
     }
-  }, [url, organizationName])
+  }, [url, organizationName, onImportToList])
 
   const toggleMember = useCallback((index: number) => {
     setSelectedMembers(prev => {
