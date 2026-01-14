@@ -5,6 +5,7 @@ import { FieldSelectionCard } from './FieldSelectionCard'
 import { EnrichmentResultsPanel } from './EnrichmentResultsPanel'
 import { SavedContactsPanel } from './SavedContactsPanel'
 import { DuplicateWarningDialog } from './DuplicateWarningDialog'
+import { TeamScraperPanel } from './TeamScraperPanel'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,8 @@ import {
   Trash2,
   ArrowRight,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Globe
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -103,6 +105,10 @@ export function EnrichmentApp() {
             <Tabs defaultValue="enrich" className="h-full flex flex-col">
               <TabsList className="w-full mb-4">
                 <TabsTrigger value="enrich" className="flex-1">Rikasta</TabsTrigger>
+                <TabsTrigger value="scrape" className="flex-1">
+                  <Globe className="h-3 w-3 mr-1" />
+                  Scrape
+                </TabsTrigger>
                 <TabsTrigger value="saved" className="flex-1">Tallennetut</TabsTrigger>
               </TabsList>
               
@@ -245,6 +251,10 @@ export function EnrichmentApp() {
                     </div>
                   </CardContent>
                 </Card>
+              </TabsContent>
+              
+              <TabsContent value="scrape" className="flex-1 m-0 overflow-auto">
+                <TeamScraperPanel />
               </TabsContent>
               
               <TabsContent value="saved" className="flex-1 m-0 overflow-hidden">
