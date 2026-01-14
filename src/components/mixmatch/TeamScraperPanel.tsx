@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,14 +33,20 @@ interface TeamScraperPanelProps {
     organizationUrl: string,
     role: ListRole
   ) => void
+  onDataChange?: (result: ScrapeResult | null, selectedMembers: Set<number>) => void
 }
 
-export function TeamScraperPanel({ onImportToList }: TeamScraperPanelProps) {
+export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPanelProps) {
   const [url, setUrl] = useState('')
   const [organizationName, setOrganizationName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<ScrapeResult | null>(null)
   const [selectedMembers, setSelectedMembers] = useState<Set<number>>(new Set())
+
+  // Notify parent of data changes
+  useEffect(() => {
+    onDataChange?.(result, selectedMembers)
+  }, [result, selectedMembers, onDataChange])
 
   const handleScrape = useCallback(async () => {
     if (!url.trim()) {

@@ -6,6 +6,7 @@ import { EnrichmentResultsPanel } from './EnrichmentResultsPanel'
 import { SavedContactsPanel } from './SavedContactsPanel'
 import { DuplicateWarningDialog } from './DuplicateWarningDialog'
 import { TeamScraperPanel } from './TeamScraperPanel'
+import { UniversalDownloadButton } from './UniversalDownloadButton'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -15,25 +16,20 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { 
   Sparkles, 
-  Download, 
-  FileSpreadsheet, 
   Trash2,
   ArrowRight,
   MessageSquare,
   AlertTriangle,
   Globe
 } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import type { MasterContact } from '@/types/database'
+import type { ScrapeResult } from '@/lib/api/teamScraper'
 
 export function EnrichmentApp() {
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
+  const [scrapedResults, setScrapedResults] = useState<ScrapeResult | null>(null)
+  const [selectedScrapedMembers, setSelectedScrapedMembers] = useState<Set<number>>(new Set())
   
   const {
     primaryList,
@@ -53,9 +49,7 @@ export function EnrichmentApp() {
     toggleEnrichmentField,
     selectAllEnrichmentFields,
     deselectAllEnrichmentFields,
-    clearAll,
-    exportToCSV,
-    exportToExcel
+    clearAll
   } = useEnrichmentEngine()
 
   const canEnrich = primaryList.contacts.length > 0 && 
@@ -74,27 +68,13 @@ export function EnrichmentApp() {
     runEnrichment()
   }
 
-  const handleExportCSV = () => {
-    if (enrichedContacts.length === 0) {
-      toast.error('Ei kontakteja vietäväksi')
-      return
-    }
-    exportToCSV()
-    toast.success(`${enrichedContacts.length} kontaktia viety CSV-tiedostoon`)
-  }
-
-  const handleExportExcel = () => {
-    if (enrichedContacts.length === 0) {
-      toast.error('Ei kontakteja vietäväksi')
-      return
-    }
-    exportToExcel()
-    toast.success(`${enrichedContacts.length} kontaktia viety Excel-tiedostoon`)
-  }
-
   const handleEditContact = (contact: MasterContact) => {
-    // For now just show a toast - could integrate with master contact editing
     toast.info('Muokkaus ei ole käytettävissä rikastusnäkymässä')
+  }
+
+  const handleScrapedDataChange = (result: ScrapeResult | null, selected: Set<number>) => {
+    setScrapedResults(result)
+    setSelectedScrapedMembers(selected)
   }
 
   return (
@@ -218,28 +198,15 @@ export function EnrichmentApp() {
                       </Button>
                       
                       <div className="flex gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="flex-1"
-                              disabled={enrichedContacts.length === 0}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Vie
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={handleExportCSV}>
-                              <Download className="h-4 w-4 mr-2" />
-                              CSV-tiedosto
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleExportExcel}>
-                              <FileSpreadsheet className="h-4 w-4 mr-2" />
-                              Excel-tiedosto
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <UniversalDownloadButton 
+                          data={{
+                            enrichedContacts,
+                            scrapedResults,
+                            selectedScrapedMembers,
+                            globalNotes
+                          }}
+                          className="flex-1"
+                        />
                         
                         <Button
                           variant="ghost"
@@ -255,7 +222,10 @@ export function EnrichmentApp() {
               </TabsContent>
               
               <TabsContent value="scrape" className="flex-1 m-0 overflow-auto">
-                <TeamScraperPanel onImportToList={importScrapedContacts} />
+                <TeamScraperPanel 
+                  onImportToList={importScrapedContacts} 
+                  onDataChange={handleScrapedDataChange}
+                />
               </TabsContent>
               
               <TabsContent value="saved" className="flex-1 m-0 overflow-hidden">
