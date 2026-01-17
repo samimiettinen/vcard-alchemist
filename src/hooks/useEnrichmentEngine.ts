@@ -488,6 +488,64 @@ export function useEnrichmentEngine() {
   }, [])
 
   /**
+   * Merge contacts - update one contact with merged data and remove others
+   */
+  const mergeContacts = useCallback((mergedContact: RawSourceContact, removedIds: string[]) => {
+    setState(prev => {
+      const updateList = (list: typeof prev.primaryList) => {
+        if (!list.sourceFile) return list
+        
+        const hasRemovedContact = list.contacts.some(c => removedIds.includes(c.id))
+        const hasMergedContact = list.contacts.some(c => c.id === mergedContact.id)
+        
+        if (!hasRemovedContact && !hasMergedContact) return list
+        
+        return {
+          ...list,
+          contacts: list.contacts
+            .filter(c => !removedIds.includes(c.id))
+            .map(c => c.id === mergedContact.id ? mergedContact : c)
+        }
+      }
+
+      return {
+        ...prev,
+        primaryList: updateList(prev.primaryList),
+        secondaryList: updateList(prev.secondaryList),
+        tertiaryList: updateList(prev.tertiaryList),
+        enrichedContacts: [] // Clear enriched contacts when source changes
+      }
+    })
+  }, [])
+
+  /**
+   * Remove contacts by ID from all lists
+   */
+  const removeContacts = useCallback((contactIds: string[]) => {
+    setState(prev => {
+      const filterList = (list: typeof prev.primaryList) => {
+        if (!list.sourceFile) return list
+        
+        const filteredContacts = list.contacts.filter(c => !contactIds.includes(c.id))
+        if (filteredContacts.length === list.contacts.length) return list
+        
+        return {
+          ...list,
+          contacts: filteredContacts
+        }
+      }
+
+      return {
+        ...prev,
+        primaryList: filterList(prev.primaryList),
+        secondaryList: filterList(prev.secondaryList),
+        tertiaryList: filterList(prev.tertiaryList),
+        enrichedContacts: [] // Clear enriched contacts when source changes
+      }
+    })
+  }, [])
+
+  /**
    * Prepare export data from enriched contacts
    */
   const prepareExportData = useCallback(() => {
@@ -599,6 +657,8 @@ export function useEnrichmentEngine() {
     selectAllEnrichmentFields,
     deselectAllEnrichmentFields,
     clearAll,
+    mergeContacts,
+    removeContacts,
     exportToCSV,
     exportToExcel
   }
