@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,9 @@ import {
   AlertCircle,
   ExternalLink,
   Import,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react'
 import { scrapeTeamPage, type TeamMember, type ScrapeResult } from '@/lib/api/teamScraper'
 import { toast } from 'sonner'
@@ -42,11 +44,96 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<ScrapeResult | null>(null)
   const [selectedMembers, setSelectedMembers] = useState<Set<number>>(new Set())
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Notify parent of data changes
   useEffect(() => {
     onDataChange?.(result, selectedMembers)
   }, [result, selectedMembers, onDataChange])
+
+  // Handle CSV import for batch URLs
+  const handleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+      
+      // Extract URLs from CSV (first column or URL column)
+      const urls: string[] = []
+      const hasHeader = lines[0]?.toLowerCase().includes('url') || !lines[0]?.startsWith('http')
+      const startIndex = hasHeader ? 1 : 0
+      
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i]
+        // Handle both comma-separated and single-column formats
+        const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''))
+        const urlPart = parts.find(p => p.startsWith('http')) || parts[0]
+        if (urlPart && urlPart.startsWith('http')) {
+          urls.push(urlPart)
+        }
+      }
+
+      if (urls.length === 0) {
+        toast.error('No valid URLs found in CSV')
+        return
+      }
+
+      toast.info(`Found ${urls.length} URLs to scrape`)
+      
+      // Batch scrape all URLs
+      setIsLoading(true)
+      setBatchProgress({ current: 0, total: urls.length })
+      
+      let allMembers: TeamMember[] = []
+      let successCount = 0
+      
+      for (let i = 0; i < urls.length; i++) {
+        setBatchProgress({ current: i + 1, total: urls.length })
+        
+        try {
+          const data = await scrapeTeamPage(urls[i])
+          if (data.success && data.teamMembers.length > 0) {
+            allMembers = [...allMembers, ...data.teamMembers]
+            successCount++
+          }
+        } catch (err) {
+          console.error(`Failed to scrape ${urls[i]}:`, err)
+        }
+      }
+      
+      setBatchProgress(null)
+      
+      if (allMembers.length > 0) {
+        const combinedResult: ScrapeResult = {
+          success: true,
+          teamMembers: allMembers,
+          organizationName: `Batch Import (${successCount} sites)`,
+          organizationUrl: ''
+        }
+        setResult(combinedResult)
+        setSelectedMembers(new Set(allMembers.map((_, i) => i)))
+        
+        if (onImportToList) {
+          onImportToList(allMembers, combinedResult.organizationName, '', 'primary')
+          toast.success(`Imported ${allMembers.length} contacts from ${successCount} sites`)
+        } else {
+          toast.success(`Found ${allMembers.length} contacts from ${successCount} sites`)
+        }
+      } else {
+        toast.warning('No contacts found in any of the URLs')
+      }
+    } catch (err) {
+      console.error('CSV import error:', err)
+      toast.error('Failed to parse CSV file')
+    } finally {
+      setIsLoading(false)
+      setBatchProgress(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }, [onImportToList])
 
   const handleScrape = useCallback(async () => {
     if (!url.trim()) {
@@ -216,73 +303,103 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
   }, [result, selectedMembers, onImportToList])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Input Section */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Globe className="h-4 w-4" />
             Team Page Scraper
           </CardTitle>
-          <CardDescription>
-            Enter a company team/about page URL to extract contact information
+          <CardDescription className="text-xs">
+            Enter a URL or import CSV with multiple URLs
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="team-url">Team Page URL</Label>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="team-url" className="text-xs">Team Page URL</Label>
             <Input
               id="team-url"
               type="url"
-              placeholder="https://company.com/team or /about or /meista"
+              placeholder="https://company.com/team"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
+              className="h-8 text-sm"
             />
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="org-name">Organization Name (optional)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="org-name" className="text-xs">Organization Name (optional)</Label>
             <Input
               id="org-name"
-              placeholder="Company Name - will be auto-detected if not provided"
+              placeholder="Auto-detected if not provided"
               value={organizationName}
               onChange={(e) => setOrganizationName(e.target.value)}
+              className="h-8 text-sm"
             />
           </div>
 
-          <Button 
-            onClick={handleScrape} 
-            disabled={isLoading || !url.trim()}
-            className="w-full"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scraping...
-              </>
-            ) : (
-              <>
-                <Users className="mr-2 h-4 w-4" />
-                Scrape Team Page
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleScrape} 
+              disabled={isLoading || !url.trim()}
+              className="flex-1 h-8 text-xs"
+              size="sm"
+            >
+              {isLoading && !batchProgress ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                  Scraping...
+                </>
+              ) : (
+                <>
+                  <Users className="mr-1.5 h-3 w-3" />
+                  Scrape
+                </>
+              )}
+            </Button>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCSVImport}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+            >
+              <FileSpreadsheet className="mr-1.5 h-3 w-3" />
+              Import CSV
+            </Button>
+          </div>
+          
+          {batchProgress && (
+            <div className="text-xs text-muted-foreground text-center py-1">
+              <Loader2 className="inline h-3 w-3 animate-spin mr-1" />
+              Scraping {batchProgress.current} of {batchProgress.total}...
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Results Section */}
       {result && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Building2 className="h-4 w-4" />
                   {result.organizationName || 'Scraped Results'}
                 </CardTitle>
                 {result.organizationUrl && (
-                  <CardDescription className="flex items-center gap-1 mt-1">
+                  <CardDescription className="flex items-center gap-1 mt-0.5 text-xs">
                     <a 
                       href={result.organizationUrl} 
                       target="_blank" 
@@ -290,48 +407,50 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
                       className="text-primary hover:underline flex items-center gap-1"
                     >
                       {result.organizationUrl}
-                      <ExternalLink className="h-3 w-3" />
+                      <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                   </CardDescription>
                 )}
               </div>
-              <Badge variant={result.teamMembers.length > 0 ? 'default' : 'secondary'}>
-                {result.teamMembers.length} members found
+              <Badge variant={result.teamMembers.length > 0 ? 'default' : 'secondary'} className="text-xs">
+                {result.teamMembers.length} found
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {result.teamMembers.length > 0 ? (
               <>
                 {/* Selection Controls */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={selectAll}>
-                      Select All
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" onClick={selectAll} className="h-7 text-xs px-2">
+                      All
                     </Button>
-                    <Button variant="outline" size="sm" onClick={deselectAll}>
-                      Deselect All
+                    <Button variant="outline" size="sm" onClick={deselectAll} className="h-7 text-xs px-2">
+                      None
                     </Button>
-                    <span className="text-sm text-muted-foreground">
-                      {selectedMembers.size} selected
+                    <span className="text-xs text-muted-foreground">
+                      {selectedMembers.size} sel.
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Button 
                       variant="outline" 
                       size="sm" 
                       onClick={exportToCSV}
                       disabled={selectedMembers.size === 0}
+                      className="h-7 text-xs px-2"
                     >
-                      <Download className="mr-1 h-3 w-3" />
+                      <Download className="mr-1 h-2.5 w-2.5" />
                       CSV
                     </Button>
                     <Button 
                       size="sm" 
                       onClick={exportToExcel}
                       disabled={selectedMembers.size === 0}
+                      className="h-7 text-xs px-2"
                     >
-                      <Download className="mr-1 h-3 w-3" />
+                      <Download className="mr-1 h-2.5 w-2.5" />
                       Excel
                     </Button>
                   </div>
@@ -339,23 +458,24 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
 
                 {/* Import to List Controls */}
                 {onImportToList && (
-                  <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                    <Import className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-sm font-medium flex-1">Import to enrichment list:</span>
+                  <div className="flex items-center gap-1.5 p-2 bg-primary/5 rounded-md border border-primary/20">
+                    <Import className="h-3 w-3 text-primary flex-shrink-0" />
+                    <span className="text-xs font-medium flex-1">Import to:</span>
                     <Button 
                       size="sm" 
                       variant="default"
                       onClick={() => handleImportToList('primary')}
                       disabled={selectedMembers.size === 0}
+                      className="h-6 text-xs px-2"
                     >
                       Primary
-                      <ArrowRight className="ml-1 h-3 w-3" />
                     </Button>
                     <Button 
                       size="sm" 
                       variant="outline"
                       onClick={() => handleImportToList('secondary')}
                       disabled={selectedMembers.size === 0}
+                      className="h-6 text-xs px-2"
                     >
                       Secondary
                     </Button>
@@ -364,6 +484,7 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
                       variant="outline"
                       onClick={() => handleImportToList('tertiary')}
                       disabled={selectedMembers.size === 0}
+                      className="h-6 text-xs px-2"
                     >
                       Tertiary
                     </Button>
@@ -371,42 +492,42 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
                 )}
 
                 {/* Team Members List */}
-                <ScrollArea className="h-[400px] rounded-md border">
-                  <div className="p-4 space-y-3">
+                <ScrollArea className="h-[300px] rounded-md border">
+                  <div className="p-2 space-y-1.5">
                     {result.teamMembers.map((member, index) => (
                       <div 
                         key={index}
-                        className={`p-4 rounded-lg border transition-colors ${
+                        className={`p-2 rounded-md border transition-colors ${
                           selectedMembers.has(index) 
                             ? 'bg-primary/5 border-primary/20' 
                             : 'bg-muted/30 border-border'
                         }`}
                       >
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-2">
                           <Checkbox
                             checked={selectedMembers.has(index)}
                             onCheckedChange={() => toggleMember(index)}
-                            className="mt-1"
+                            className="mt-0.5 h-3.5 w-3.5"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium">{member.fullName || `${member.firstName} ${member.lastName}`.trim()}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-medium">{member.fullName || `${member.firstName} ${member.lastName}`.trim()}</span>
                               {member.title && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-[10px] px-1 py-0">
                                   {member.title}
                                 </Badge>
                               )}
                             </div>
-                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
                               {member.email && (
-                                <span className="flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
+                                <span className="flex items-center gap-0.5">
+                                  <Mail className="h-2.5 w-2.5" />
                                   {member.email}
                                 </span>
                               )}
                               {(member.phone || member.mobilePhone) && (
-                                <span className="flex items-center gap-1">
-                                  <Phone className="h-3 w-3" />
+                                <span className="flex items-center gap-0.5">
+                                  <Phone className="h-2.5 w-2.5" />
                                   {member.mobilePhone || member.phone}
                                 </span>
                               )}
@@ -415,23 +536,18 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
                                   href={member.linkedinUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center gap-1 text-primary hover:underline"
+                                  className="flex items-center gap-0.5 text-primary hover:underline"
                                 >
-                                  <Linkedin className="h-3 w-3" />
+                                  <Linkedin className="h-2.5 w-2.5" />
                                   LinkedIn
                                 </a>
                               )}
                             </div>
-                            {member.bio && (
-                              <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                                {member.bio}
-                              </p>
-                            )}
                           </div>
                           {member.email || member.linkedinUrl ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
                           ) : (
-                            <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                            <AlertCircle className="h-3 w-3 text-amber-500 flex-shrink-0" />
                           )}
                         </div>
                       </div>
@@ -440,15 +556,12 @@ export function TeamScraperPanel({ onImportToList, onDataChange }: TeamScraperPa
                 </ScrollArea>
               </>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No team members could be extracted from this page.</p>
+              <div className="text-center py-4 text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-xs">No team members found.</p>
                 {result.error && (
-                  <p className="text-sm mt-2 text-amber-600">{result.error}</p>
+                  <p className="text-[11px] mt-1 text-amber-600">{result.error}</p>
                 )}
-                <p className="text-sm mt-2">
-                  Try a different URL or check if the page has team member information.
-                </p>
               </div>
             )}
           </CardContent>
