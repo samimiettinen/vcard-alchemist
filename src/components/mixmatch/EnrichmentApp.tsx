@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useEnrichmentEngine } from '@/hooks/useEnrichmentEngine'
 import { ListImportCard } from './ListImportCard'
 import { FieldSelectionCard } from './FieldSelectionCard'
 import { EnrichmentResultsPanel } from './EnrichmentResultsPanel'
 import { SavedContactsPanel } from './SavedContactsPanel'
 import { DuplicateWarningDialog } from './DuplicateWarningDialog'
+import { DuplicateManagerPanel } from './DuplicateManagerPanel'
 import { TeamScraperPanel } from './TeamScraperPanel'
 import { UniversalDownloadButton } from './UniversalDownloadButton'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
@@ -20,10 +21,11 @@ import {
   ArrowRight,
   MessageSquare,
   AlertTriangle,
-  Globe
+  Globe,
+  GitMerge
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { MasterContact } from '@/types/database'
+import type { MasterContact, RawSourceContact } from '@/types/database'
 import type { ScrapeResult } from '@/lib/api/teamScraper'
 
 export function EnrichmentApp() {
@@ -49,8 +51,25 @@ export function EnrichmentApp() {
     toggleEnrichmentField,
     selectAllEnrichmentFields,
     deselectAllEnrichmentFields,
-    clearAll
+    clearAll,
+    mergeContacts,
+    removeContacts
   } = useEnrichmentEngine()
+
+  // Get all contacts for duplicate management
+  const allContacts = [
+    ...primaryList.contacts,
+    ...secondaryList.contacts,
+    ...tertiaryList.contacts
+  ]
+
+  const handleMergeContacts = useCallback((mergedContact: RawSourceContact, removedIds: string[]) => {
+    mergeContacts(mergedContact, removedIds)
+  }, [mergeContacts])
+
+  const handleRemoveContacts = useCallback((contactIds: string[]) => {
+    removeContacts(contactIds)
+  }, [removeContacts])
 
   const canEnrich = primaryList.contacts.length > 0 && 
     (secondaryList.contacts.length > 0 || tertiaryList.contacts.length > 0)
@@ -85,12 +104,16 @@ export function EnrichmentApp() {
           <div className="h-full flex flex-col p-4">
             <Tabs defaultValue="enrich" className="h-full flex flex-col">
               <TabsList className="w-full mb-4">
-                <TabsTrigger value="enrich" className="flex-1">Rikasta</TabsTrigger>
-                <TabsTrigger value="scrape" className="flex-1">
+                <TabsTrigger value="enrich" className="flex-1 text-xs">Rikasta</TabsTrigger>
+                <TabsTrigger value="scrape" className="flex-1 text-xs">
                   <Globe className="h-3 w-3 mr-1" />
                   Scrape
                 </TabsTrigger>
-                <TabsTrigger value="saved" className="flex-1">Tallennetut</TabsTrigger>
+                <TabsTrigger value="duplicates" className="flex-1 text-xs">
+                  <GitMerge className="h-3 w-3 mr-1" />
+                  Duplikaatit
+                </TabsTrigger>
+                <TabsTrigger value="saved" className="flex-1 text-xs">Tallennetut</TabsTrigger>
               </TabsList>
               
               <TabsContent value="enrich" className="flex-1 flex flex-col gap-4 m-0 overflow-hidden">
@@ -225,6 +248,14 @@ export function EnrichmentApp() {
                 <TeamScraperPanel 
                   onImportToList={importScrapedContacts} 
                   onDataChange={handleScrapedDataChange}
+                />
+              </TabsContent>
+              
+              <TabsContent value="duplicates" className="flex-1 m-0 overflow-hidden">
+                <DuplicateManagerPanel
+                  contacts={allContacts}
+                  onMergeContacts={handleMergeContacts}
+                  onRemoveContacts={handleRemoveContacts}
                 />
               </TabsContent>
               
