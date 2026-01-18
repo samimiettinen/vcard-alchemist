@@ -75,7 +75,7 @@ export function FieldSelectionCard({
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-3 pt-0">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {FIELD_OPTIONS.map(field => (
             <div
               key={field.id}

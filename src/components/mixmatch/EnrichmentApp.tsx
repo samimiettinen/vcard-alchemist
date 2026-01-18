@@ -100,7 +100,7 @@ export function EnrichmentApp() {
     <div className="h-screen w-full bg-background">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Left section: List imports */}
-        <ResizablePanel defaultSize={30} minSize={25} maxSize={40}>
+        <ResizablePanel defaultSize={40} minSize={30} maxSize={50}>
           <div className="h-full flex flex-col p-4">
             <Tabs defaultValue="enrich" className="h-full flex flex-col">
               <TabsList className="w-full mb-4">

@@ -261,7 +261,7 @@ export function UniversalDownloadButton({
 
   if (totalContacts === 0) {
     return (
-      <Button variant={variant} size={size} className={className} disabled>
+      <Button size={size} className={`bg-blue-700 hover:bg-blue-800 text-white ${className}`} disabled>
         <Download className="h-4 w-4 mr-2" />
         Download
       </Button>
@@ -271,10 +271,10 @@ export function UniversalDownloadButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} className={className}>
+        <Button size={size} className={`bg-blue-700 hover:bg-blue-800 text-white ${className}`}>
           <Download className="h-4 w-4 mr-2" />
           Download
-          <Badge variant="secondary" className="ml-2 text-xs">
+          <Badge variant="secondary" className="ml-2 text-xs bg-blue-900 text-white">
             {totalContacts}
           </Badge>
         </Button>
