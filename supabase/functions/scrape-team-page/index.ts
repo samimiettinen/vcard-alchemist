@@ -211,7 +211,7 @@ Important:
         messages: [
           { role: 'user', content: extractionPrompt }
         ],
-        max_tokens: 8000,
+        max_tokens: 32000,
       }),
     });
 
